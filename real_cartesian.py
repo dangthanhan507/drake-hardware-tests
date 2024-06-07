@@ -15,7 +15,9 @@ from pydrake.all import (
     MeshcatVisualizerParams,
     Role,
     MeshcatVisualizer,
-    Simulator
+    Simulator,
+    LeafSystem,
+    Context
 )
 from pydrake.multibody.inverse_kinematics import InverseKinematics
 from pydrake.solvers import SnoptSolver
@@ -23,7 +25,7 @@ from pydrake.math import RigidTransform, RotationMatrix, RollPitchYaw
 from pydrake.all import StartMeshcat, PiecewisePose, Quaternion, PiecewisePolynomial, TrajectorySource
 from manipulation.station import MakeHardwareStation, MakeHardwareStationInterface, load_scenario
 JOINT0 = np.array([0.0, np.pi/6, 0.0, -80*np.pi/180, 0.0, np.pi/6, 0.0])
-CARTESIAN_ENDTIME = 30.0
+CARTESIAN_ENDTIME = 20.0
 JOINT_STEPS = 100
 
 def solveIK(plant: MultibodyPlant, target_pose: RigidTransform, frame_name: str, q0=1e-10*np.ones(7)):
@@ -127,6 +129,42 @@ def create_visual_diagram(directives_file: str):
     diagram = builder.Build()
     return diagram
 
+class BenchmarkController(LeafSystem):
+    def __init__(self, plant: MultibodyPlant):
+        LeafSystem.__init__(self)
+        self._plant = plant
+        self._plant_context = plant.CreateDefaultContext()
+        
+        
+        self._target = self.DeclareVectorInputPort("target", 7)
+        self._measured = self.DeclareVectorInputPort("measure", 7)
+        self.DeclarePeriodicPublishEvent(period_sec=1e-2, offset_sec=0.0, publish=self.Publish)
+        
+        self.ts = []
+        self.q_targets = []
+        self.q_measures = []
+        self.positions = []
+        self.des_positions = []
+    def Publish(self, context: Context):
+        self.ts.append(context.get_time())
+        q_target = self._target.Eval(context)
+        q_measure = self._measured.Eval(context)
+        
+        self._plant.SetPositions(self._plant_context, q_measure)
+        ee_pose = self._plant.CalcRelativeTransform(self._plant_context, self._plant.world_frame(), self._plant.GetBodyByName("iiwa_link_7").body_frame())
+        position = ee_pose.translation()
+        
+        self._plant.SetPositions(self._plant_context, q_target)
+        ee_pose_des = self._plant.CalcRelativeTransform(self._plant_context, self._plant.world_frame(), self._plant.GetBodyByName("iiwa_link_7").body_frame())
+        position_des = ee_pose_des.translation()
+        
+        
+        self.q_measures.append(q_measure)
+        self.q_targets.append(q_target)
+        self.positions.append(position)
+        self.des_positions.append(position_des)
+        
+
 if __name__ == '__main__':
     meshcat = StartMeshcat()
     scenario_file = "iiwa_standard_setup.yaml"
@@ -151,9 +189,13 @@ if __name__ == '__main__':
     
     position_trajectory = hardware_builder.AddNamedSystem("position_trajectory", TrajectorySource(q_traj))
     torque_output = hardware_builder.AddNamedSystem("torque_source", ConstantVectorSource(np.zeros(7)))
-    
+    record_dataguy = BenchmarkController(hardware_plant)
+    rec = hardware_builder.AddSystem(record_dataguy)
     hardware_builder.Connect(position_trajectory.get_output_port(), real_station.GetInputPort("iiwa.position"))    
     hardware_builder.Connect(torque_output.get_output_port(), real_station.GetInputPort("iiwa.feedforward_torque"))
+    hardware_builder.Connect(real_station.GetOutputPort("iiwa.position_commanded"), rec.get_input_port(0))
+    hardware_builder.Connect(real_station.GetOutputPort("iiwa.position_measured"), rec.get_input_port(1))
+    
     hardware_builder.ExportOutput(
         real_station.GetOutputPort("iiwa.position_commanded"), "iiwa.position_commanded"
     )
@@ -167,5 +209,27 @@ if __name__ == '__main__':
     input("Press Enter to Start.")
     simulator = Simulator(hardware_diagram)
     simulator.set_target_realtime_rate(1.0)
-    simulator.AdvanceTo(CARTESIAN_ENDTIME + 10.0)
-    pass
+    simulator.AdvanceTo(CARTESIAN_ENDTIME + 3.0)
+    
+    # done running
+    import matplotlib.pyplot as plt
+    q_targets = np.array(record_dataguy.q_targets)
+    q_measures = np.array(record_dataguy.q_measures)
+    positions = np.array(record_dataguy.positions)
+    des_positions = np.array(record_dataguy.des_positions)
+    ts = np.array(record_dataguy.ts)
+    plt.figure()
+    plt.plot(ts, positions[:,2], c='r', label='meas')
+    plt.plot(ts, des_positions[:,2], c='b', label='des')
+    plt.legend()
+    
+    fig, axs = plt.subplots(7, 1)
+    for i in range(7):
+        if i == 0:
+            axs[i].plot(ts, q_targets[:,i], c='r',label='des')
+            axs[i].plot(ts, q_measures[:,i], c='b', label='meas')
+            axs[i].legend()
+        else:
+            axs[i].plot(ts, q_targets[:,i], c='r')
+            axs[i].plot(ts, q_measures[:,i], c='b')
+    plt.show()
