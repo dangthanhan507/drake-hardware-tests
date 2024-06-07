@@ -10,7 +10,6 @@ from pydrake.all import (
     TrajectorySource,
     PiecewisePolynomial,
     ConstantVectorSource,
-    PiecewisePolynomial,
     AddMultibodyPlantSceneGraph,
     LoadModelDirectives,
     MeshcatVisualizerParams,
@@ -73,7 +72,7 @@ if __name__ == '__main__':
     
     traj = PiecewisePolynomial.FirstOrderHold(ts, qs.T)
     position_trajectory = hardware_builder.AddNamedSystem(
-        "position_source", TrajectorySource(traj)
+        "position_trajectory", TrajectorySource(traj)
     )
     torque_output = hardware_builder.AddNamedSystem(
         "torque_source", ConstantVectorSource(np.zeros(7))
@@ -127,13 +126,23 @@ if __name__ == '__main__':
     
     context = hardware_diagram.CreateDefaultContext()
     hardware_diagram.ExecuteInitializationEvents(context)
-    q = hardware_diagram.GetOutputPort("iiwa.position_commanded").Eval(context)
-
-    run = False
+    
+    ts = np.array([0.0, 20.0])
+    
+    curr_q = hardware_diagram.GetOutputPort("iiwa.position_commanded").Eval(context)
+    des_q = np.array([0.0, np.pi/6, 0.0, -80*np.pi/180, 0.0, np.pi/6, 0.0])
+    # des_q = np.zeros(7)
+    
+    qs = np.array([curr_q, des_q])
+    traj = PiecewisePolynomial.FirstOrderHold(ts, qs.T)
+    position_trajectory = hardware_diagram.GetSubsystemByName("position_trajectory")
+    position_trajectory.UpdateTrajectory(traj)
+    
+    run = True
     if run:    
         simulator = Simulator(hardware_diagram)
         simulator.set_target_realtime_rate(1.0)
-        simulator.AdvanceTo(30.0)
+        simulator.AdvanceTo(40.0)
     else:
-        print("Joint Values: ", q)
+        print("Joint Values: ", curr_q * 180 / np.pi) 
     print("Done")
