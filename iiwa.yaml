@@ -1,0 +1,10 @@
+directives:
+
+# Add iiwa
+- add_model:
+    name: iiwa
+    file: package://drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf
+    
+- add_weld:
+    parent: world
+    child: iiwa::base

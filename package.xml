@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>iiwa_tutorial</name>
+  <version>0.0.0</version>
+  <description>
+    Stuff for An.
+  </description>
+  <maintainer email="an@umich.edu">An Dang</maintainer>
+  <author>An Dang</author>
+  <license>N/A</license>
+</package>
