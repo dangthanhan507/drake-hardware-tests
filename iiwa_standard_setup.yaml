@@ -18,4 +18,4 @@ Demo:
             child: iiwa::base
   model_drivers:
     iiwa: !IiwaDriver
-      control_mode: position_and_torque
+      control_mode: position_only
