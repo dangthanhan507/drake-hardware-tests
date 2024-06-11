@@ -16,11 +16,14 @@ JOINT0 = np.array([0.0, np.pi/6, 0.0, -80*np.pi/180, 0.0, np.pi/6, 0.0])
 CARTESIAN_ENDTIME = 10.0
 JOINT_STEPS = 50
 
-def load_iiwa_setup(plant: MultibodyPlant, scene_graph: SceneGraph = None, radius_left_finger=0.1, radius_right_finger=0.1):
-    directive_path = "iiwa.yaml"
+def load_iiwa_setup(plant: MultibodyPlant, scene_graph: SceneGraph = None):
     parser = Parser(plant, scene_graph)
-    directives = LoadModelDirectives(directive_path)
-    models = ProcessModelDirectives(directives, plant, parser)
+    # directive_path = "med.yaml"
+    # directives = LoadModelDirectives(directive_path)
+    # models = ProcessModelDirectives(directives, plant, parser)
+    parser.AddModels("./med.urdf")
+    plant.WeldFrames(plant.world_frame(), plant.GetFrameByName("base"))
+    
 
 def solveIK(plant: MultibodyPlant, target_pose: RigidTransform, frame_name: str, q0=1e-10*np.ones(7)):
     ik = InverseKinematics(plant, with_joint_limits=True)
@@ -112,11 +115,15 @@ if __name__ == '__main__':
     config = MultibodyPlantConfig()
     config.time_step = 1e-3
     config.penetration_allowance = 1e-9
+    
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlant(config, builder)
     plant: MultibodyPlant = plant # for help w/ vscode :) 
     load_iiwa_setup(plant, scene_graph)
     plant.Finalize()
+    
+    print(plant.num_positions())
+    print(plant.GetPositionNames())
     
     num_joints = plant.num_positions()
     # kp = np.array([800, 600, 600, 600, 400, 200, 200])
@@ -149,7 +156,7 @@ if __name__ == '__main__':
     diagram = builder.Build()
     simulator = Simulator(diagram)
     plant_context = plant.GetMyContextFromRoot(simulator.get_mutable_context())
-    plant.SetPositions(plant_context, plant.GetModelInstanceByName("iiwa"), JOINT0)
+    plant.SetPositions(plant_context, plant.GetModelInstanceByName("med"), JOINT0)
     simulator.Initialize()
     simulator.set_target_realtime_rate(1.0)
     meshcat.StartRecording()
