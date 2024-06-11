@@ -8,7 +8,7 @@ from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.multibody.inverse_kinematics import InverseKinematics
 from pydrake.solvers import SnoptSolver
 from pydrake.systems.framework import DiagramBuilder
-from pydrake.all import StartMeshcat, PiecewisePose, Quaternion, PiecewisePolynomial, TrajectorySource
+from pydrake.all import StartMeshcat, PiecewisePose, Quaternion, PiecewisePolynomial, TrajectorySource, LeafSystem, Context
 from pydrake.systems.analysis import Simulator
 from pydrake.visualization import AddDefaultVisualization
 import os
@@ -70,7 +70,42 @@ def create_traj(plant: MultibodyPlant, ee_pose0: RigidTransform, q0: np.ndarray,
     qs = np.array(qs)
     q_traj = PiecewisePolynomial.FirstOrderHold(ts_joints, qs.T)
     return q_traj
-    
+
+class BenchmarkController(LeafSystem):
+    def __init__(self, plant: MultibodyPlant):
+        LeafSystem.__init__(self)
+        self._plant = plant
+        self._plant_context = plant.CreateDefaultContext()
+        
+        
+        self._target = self.DeclareVectorInputPort("target", 7)
+        self._measured = self.DeclareVectorInputPort("measure", 14)
+        self.DeclarePeriodicPublishEvent(period_sec=1e-2, offset_sec=0.0, publish=self.Publish)
+        
+        self.ts = []
+        self.q_targets = []
+        self.q_measures = []
+        self.positions = []
+        self.des_positions = []
+    def Publish(self, context: Context):
+        self.ts.append(context.get_time())
+        q_target = self._target.Eval(context)
+        q_measure = self._measured.Eval(context)[:7]
+        
+        self._plant.SetPositions(self._plant_context, q_measure)
+        ee_pose = self._plant.CalcRelativeTransform(self._plant_context, self._plant.world_frame(), self._plant.GetBodyByName("iiwa_link_7").body_frame())
+        position = ee_pose.translation()
+        
+        self._plant.SetPositions(self._plant_context, q_target)
+        ee_pose_des = self._plant.CalcRelativeTransform(self._plant_context, self._plant.world_frame(), self._plant.GetBodyByName("iiwa_link_7").body_frame())
+        position_des = ee_pose_des.translation()
+        
+        
+        self.q_measures.append(q_measure)
+        self.q_targets.append(q_target)
+        self.positions.append(position)
+        self.des_positions.append(position_des)
+
 if __name__ == '__main__':
     meshcat = StartMeshcat()
     
@@ -99,9 +134,15 @@ if __name__ == '__main__':
     q_traj = create_traj(plant, ee_pose0, q0, endtime=CARTESIAN_ENDTIME, steps=JOINT_STEPS)
     
     traj_block = builder.AddSystem(TrajectorySource(q_traj,output_derivative_order=1))
+    traj0_block = builder.AddSystem(TrajectorySource(q_traj, output_derivative_order=0))
+    result = BenchmarkController(plant)
+    result_block = builder.AddSystem(result)
     builder.Connect(traj_block.get_output_port(), controller_block.get_input_port_desired_state())
     builder.Connect(plant.get_state_output_port(), controller_block.get_input_port_estimated_state())
     builder.Connect(controller_block.get_output_port(), plant.get_actuation_input_port())
+    builder.Connect(traj0_block.get_output_port(), result_block.GetInputPort("target"))
+    builder.Connect(plant.get_state_output_port(), result_block.GetInputPort("measure"))
+    
     
     AddDefaultVisualization(builder, meshcat)
     
@@ -115,3 +156,22 @@ if __name__ == '__main__':
     simulator.AdvanceTo(CARTESIAN_ENDTIME+5.0)
     meshcat.StopRecording()
     meshcat.PublishRecording()
+    
+    import matplotlib.pyplot as plt
+    # make 7 subplots
+    fig, axs = plt.subplots(7, 1, figsize=(10, 20))
+    for i in range(7):
+        axs[i].plot(result.ts, np.array(result.q_targets)[:,i], label="target")
+        axs[i].plot(result.ts, np.array(result.q_measures)[:,i], label="measured")
+        axs[i].set_title(f"Joint {i}")
+        axs[i].legend()
+        
+    plt.figure() # plot z positions
+    positions = np.array(result.positions)
+    des_positions = np.array(result.des_positions)
+    plt.plot(result.ts, positions[:,2], label="z")
+    plt.plot(result.ts, des_positions[:,2], label="z_des")
+    plt.legend()
+    plt.xlabel("Time (s)")
+    plt.ylabel("Z Position (m)")
+    plt.show()
