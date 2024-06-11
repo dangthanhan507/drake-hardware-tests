@@ -6,10 +6,9 @@ from pydrake.all import (
     DiagramBuilder,
     TrajectorySource,
     RigidTransform,
-    LeafSystem,
-    Context
 )
 import numpy as np
+from data_record import BenchmarkController
 JOINT0 = np.array([0.0, np.pi/6, 0.0, -80*np.pi/180, 0.0, np.pi/6, 0.0])
 ENDTIME = 20.0
 
@@ -36,9 +35,13 @@ if __name__ == '__main__':
     
     hardware_block = root_builder.AddSystem(hardware_diagram)
     traj_block = root_builder.AddSystem(traj)
+    record_dataguy = BenchmarkController(hardware_plant)
+    record_block = root_builder.AddSystem(record_dataguy)
     
     root_builder.Connect(traj_block.get_output_port(), hardware_block.GetInputPort("iiwa.position"))
     root_builder.Connect(traj_block.get_output_port(), hardware_block.GetInputPort("iiwa_fake.position"))
+    root_builder.Connect(hardware_block.GetOutputPort("iiwa.position_commanded"), record_block.GetInputPort("target"))
+    root_builder.Connect(hardware_block.GetOutputPort("iiwa.position_measured"), record_block.GetInputPort("measure"))
     
     root_diagram = root_builder.Build()
     
@@ -46,3 +49,25 @@ if __name__ == '__main__':
     simulator = Simulator(root_diagram)
     simulator.set_target_realtime_rate(1.0)
     simulator.AdvanceTo(ENDTIME + 2.0)
+    
+    # done running
+    import matplotlib.pyplot as plt
+    q_targets = np.array(record_dataguy.q_targets)
+    q_measures = np.array(record_dataguy.q_measures)
+    positions = np.array(record_dataguy.positions)
+    des_positions = np.array(record_dataguy.des_positions)
+    ts = np.array(record_dataguy.ts)
+    fig, axs = plt.subplots(3, 1)
+    for i in range(3):
+        axs[i].plot(ts, np.abs(positions[:,i] - des_positions[:,i]), c='r')
+    
+    fig, axs = plt.subplots(7, 1)
+    for i in range(7):
+        if i == 0:
+            axs[i].plot(ts, q_targets[:,i], c='r',label='des')
+            axs[i].plot(ts, q_measures[:,i], c='b', label='meas')
+            axs[i].legend()
+        else:
+            axs[i].plot(ts, q_targets[:,i], c='r')
+            axs[i].plot(ts, q_measures[:,i], c='b')
+    plt.show()
