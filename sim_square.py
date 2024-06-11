@@ -16,13 +16,14 @@ JOINT0 = np.array([0.0, np.pi/6, 0.0, -80*np.pi/180, 0.0, np.pi/6, 0.0])
 CARTESIAN_ENDTIME = 10.0
 JOINT_STEPS = 50
 
-def load_iiwa_setup(plant: MultibodyPlant, scene_graph: SceneGraph = None):
+def load_iiwa_setup(plant: MultibodyPlant, scene_graph: SceneGraph = None, package_file='./package.xml'):
     parser = Parser(plant, scene_graph)
-    # directive_path = "med.yaml"
-    # directives = LoadModelDirectives(directive_path)
-    # models = ProcessModelDirectives(directives, plant, parser)
-    parser.AddModels("./med.urdf")
-    plant.WeldFrames(plant.world_frame(), plant.GetFrameByName("base"))
+    parser.package_map().AddPackageXml(package_file)
+    directive_path = "med.yaml"
+    directives = LoadModelDirectives(directive_path)
+    models = ProcessModelDirectives(directives=directives, plant=plant, parser=parser)
+    # parser.AddModels("./med.urdf")
+    # plant.WeldFrames(plant.world_frame(), plant.GetFrameByName("base"))
     
 
 def solveIK(plant: MultibodyPlant, target_pose: RigidTransform, frame_name: str, q0=1e-10*np.ones(7)):

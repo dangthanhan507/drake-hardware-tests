@@ -1,4 +1,4 @@
-from planning import create_traj
+from planning import create_traj, GravityCompensation
 from diagrams import create_hardware_diagram_plant, create_visual_diagram
 from pydrake.all import (
     StartMeshcat,
@@ -15,8 +15,11 @@ ENDTIME = 20.0
 
 if __name__ == '__main__':
     meshcat = StartMeshcat()
-    scenario_file = "iiwa_setup_impedance.yaml"
-    directives_file = "iiwa.yaml"
+    
+    # scenario_file = "iiwa_setup_impedance.yaml"
+    # directives_file = "iiwa.yaml"
+    scenario_file = "med_setup_impedance.yaml"
+    directives_file = "med.yaml"
     
     root_builder = DiagramBuilder()
     
@@ -38,12 +41,21 @@ if __name__ == '__main__':
     traj_block = root_builder.AddSystem(traj)
     record_dataguy = BenchmarkController(hardware_plant)
     record_block = root_builder.AddSystem(record_dataguy)
-    zero_torque_block = root_builder.AddSystem(ConstantVectorSource(np.zeros(7)))
+    
+    grav_block = root_builder.AddSystem(GravityCompensation(hardware_plant))
     
     root_builder.Connect(traj_block.get_output_port(), hardware_block.GetInputPort("iiwa.position"))
     root_builder.Connect(traj_block.get_output_port(), hardware_block.GetInputPort("iiwa_fake.position"))
-    root_builder.Connect(zero_torque_block.get_output_port(), hardware_block.GetInputPort("iiwa.feedforward_torque"))
-    root_builder.Connect(zero_torque_block.get_output_port(), hardware_block.GetInputPort("iiwa_fake.feedforward_torque"))
+    
+    root_builder.Connect(hardware_block.GetOutputPort("iiwa.position_measured"), grav_block.get_input_port(0))
+    root_builder.Connect(grav_block.get_output_port(), hardware_block.GetInputPort("iiwa.feedforward_torque"))
+    root_builder.Connect(grav_block.get_output_port(), hardware_block.GetInputPort("iiwa_fake.feedforward_torque"))
+    
+    # zero_torque_block = root_builder.AddSystem(ConstantVectorSource(np.zeros(7)))
+    # root_builder.Connect(zero_torque_block.get_output_port(), hardware_block.GetInputPort("iiwa.feedforward_torque"))
+    # root_builder.Connect(zero_torque_block.get_output_port(), hardware_block.GetInputPort("iiwa_fake.feedforward_torque"))
+    
+    
     root_builder.Connect(hardware_block.GetOutputPort("iiwa.position_commanded"), record_block.GetInputPort("target"))
     root_builder.Connect(hardware_block.GetOutputPort("iiwa.position_measured"), record_block.GetInputPort("measure"))
     

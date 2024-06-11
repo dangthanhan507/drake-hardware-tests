@@ -14,12 +14,13 @@ from pydrake.all import (
 )
 from manipulation.station import MakeHardwareStation, MakeHardwareStationInterface, load_scenario
 from typing import Tuple
-def get_hardware_blocks(hardware_builder, scenario, meshcat):
+def get_hardware_blocks(hardware_builder, scenario, meshcat, package_file='./package.xml'):
     real_station = hardware_builder.AddNamedSystem(
         "real_station",
         MakeHardwareStationInterface(
             scenario,
-            meshcat=meshcat
+            meshcat=meshcat,
+            package_xmls=[package_file]
         )
     )
     fake_station = hardware_builder.AddNamedSystem(
@@ -27,12 +28,13 @@ def get_hardware_blocks(hardware_builder, scenario, meshcat):
         MakeHardwareStation(
             scenario,
             meshcat=meshcat,
+            package_xmls=[package_file]
         )
     )
     hardware_plant = MultibodyPlant(scenario.plant_config.time_step)
     ApplyMultibodyPlantConfig(scenario.plant_config, hardware_plant)
     parser = Parser(hardware_plant)
-    
+    parser.package_map().AddPackageXml(package_file)
     ProcessModelDirectives(
         directives=ModelDirectives(directives=scenario.directives),
         plant=hardware_plant,
@@ -74,11 +76,12 @@ def create_hardware_diagram_plant(scenario_filepath, meshcat, position_only=True
     hardware_diagram = hardware_builder.Build()
     return hardware_diagram, hardware_plant
 
-def create_visual_diagram(directives_filepath: str, meshcat) -> Diagram:
+def create_visual_diagram(directives_filepath: str, meshcat, package_file='./package.xml') -> Diagram:
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
     # run simulator.set_target_realtime_rate(1.0)
     parser = Parser(plant)
+    parser.package_map().AddPackageXml(package_file)
     directives = LoadModelDirectives(directives_filepath)
     models = ProcessModelDirectives(directives, plant, parser)
     plant.Finalize()

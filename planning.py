@@ -7,6 +7,22 @@ from pydrake.trajectories import PiecewisePolynomial, PiecewisePose
 from pydrake.common.eigen_geometry import Quaternion
 from typing import List
 
+from pydrake.systems.framework import LeafSystem
+from pydrake.all import Context, MultibodyPlant
+class GravityCompensation(LeafSystem):
+    def __init__(self, plant: MultibodyPlant):
+        LeafSystem.__init__(self)
+        self._plant = plant
+        self._plant_context = plant.CreateDefaultContext()
+        
+        self._measured = self.DeclareVectorInputPort("measure", 7)
+        self.DeclareVectorOutputPort("feedforward_torques", 7, self.CalcOutput)
+    def CalcOutput(self, context: Context, output):
+        q = self.get_input_port(0).Eval(context)
+        self._plant.SetPositions(self._plant_context, q)
+        tau_g = self._plant.CalcGravityGeneralizedForces(self._plant_context)
+        output.SetFromVector(-tau_g)
+
 def solveIK(plant: MultibodyPlant, target_pose: RigidTransform, frame_name: str, q0=1e-10*np.ones(7)):
     ik = InverseKinematics(plant, with_joint_limits=True)
     ik.AddPositionConstraint(plant.GetFrameByName(frame_name),

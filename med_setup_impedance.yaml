@@ -1,0 +1,21 @@
+Demo:
+  directives:
+    # Add iiwa
+        - add_model:
+            name: iiwa
+            file: package://hardware_tests/med.urdf
+            default_joint_positions:
+                iiwa_joint_1: [0]
+                iiwa_joint_2: [0.0]
+                iiwa_joint_3: [0]
+                iiwa_joint_4: [0]
+                iiwa_joint_5: [0]
+                iiwa_joint_6: [0]
+                iiwa_joint_7: [0]
+
+        - add_weld:
+            parent: world
+            child: iiwa::base
+  model_drivers:
+    iiwa: !IiwaDriver
+      control_mode: position_and_torque

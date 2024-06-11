@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>iiwa_tutorial</name>
+  <name>hardware_tests</name>
   <version>0.0.0</version>
   <description>
     Stuff for An.
