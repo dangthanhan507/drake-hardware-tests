@@ -15,11 +15,8 @@ ENDTIME = 20.0
 
 if __name__ == '__main__':
     meshcat = StartMeshcat()
-    
-    # scenario_file = "iiwa_setup_impedance.yaml"
-    # directives_file = "iiwa.yaml"
-    scenario_file = "med_setup_impedance.yaml"
-    directives_file = "med.yaml"
+    scenario_file = "iiwa_setup_impedance.yaml"
+    directives_file = "iiwa.yaml"
     
     root_builder = DiagramBuilder()
     

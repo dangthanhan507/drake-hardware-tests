@@ -3,7 +3,7 @@ Demo:
     # Add iiwa
         - add_model:
             name: iiwa
-            file: package://hardware_tests/med.urdf
+            file: package://drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf
             default_joint_positions:
                 iiwa_joint_1: [0]
                 iiwa_joint_2: [0.0]
@@ -16,6 +16,16 @@ Demo:
         - add_weld:
             parent: world
             child: iiwa::base
+
+  lcm_buses:
+    medusa_lcm:
+      channel_suffix: _MEDUSA
+    thanos_lcm:
+      channel_suffix: _THANOS
   model_drivers:
-    iiwa: !IiwaDriver
-      control_mode: position_and_torque
+    iiwa_medusa: !IiwaDriver
+      control_mode: position_only
+      lcm_bus: medusa_lcm
+    thanos_lcm: !IiwaDriver
+      control_mode: position_only
+      lcm_bus: right_lcm
