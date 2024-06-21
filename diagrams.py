@@ -76,6 +76,59 @@ def create_hardware_diagram_plant(scenario_filepath, meshcat, position_only=True
     hardware_diagram = hardware_builder.Build()
     return hardware_diagram, hardware_plant
 
+def create_hardware_diagram_plant_bimanual(scenario_filepath, meshcat, position_only=True) -> Tuple[Diagram, MultibodyPlant]:
+    hardware_builder = DiagramBuilder()
+    scenario = load_scenario(filename=scenario_filepath, scenario_name="Demo")
+    real_station, fake_station = get_hardware_blocks(hardware_builder, scenario, meshcat)
+    
+    hardware_plant = fake_station.GetSubsystemByName("plant")
+    
+    
+    #medusa
+    hardware_builder.ExportInput(
+        real_station.GetInputPort("iiwa_medusa.position"), "iiwa_medusa.position"
+    )
+    hardware_builder.ExportInput(
+        fake_station.GetInputPort("iiwa_medusa.position"), "iiwa_medusa_fake.position"
+    )
+    if not position_only:
+        hardware_builder.ExportInput(
+            real_station.GetInputPort("iiwa_medusa.feedforward_torque"), "iiwa_medusa.feedforward_torque"
+        )
+        hardware_builder.ExportInput(
+            fake_station.GetInputPort("iiwa_medusa.feedforward_torque"), "iiwa_medusa_fake.feedforward_torque"
+        )
+    hardware_builder.ExportOutput(
+        real_station.GetOutputPort("iiwa_medusa.position_commanded"), "iiwa_medusa.position_commanded"
+    )
+    hardware_builder.ExportOutput(
+        real_station.GetOutputPort("iiwa_medusa.position_measured"), "iiwa_medusa.position_measured"
+    )
+    
+    
+    hardware_builder.ExportInput(
+        real_station.GetInputPort("iiwa_thanos.position"), "iiwa_thanos.position"
+    )
+    hardware_builder.ExportInput(
+        fake_station.GetInputPort("iiwa_thanos.position"), "iiwa_thanos_fake.position"
+    )
+    if not position_only:
+        hardware_builder.ExportInput(
+            real_station.GetInputPort("iiwa_thanos.feedforward_torque"), "iiwa_thanos.feedforward_torque"
+        )
+        hardware_builder.ExportInput(
+            fake_station.GetInputPort("iiwa_thanos.feedforward_torque"), "iiwa_thanos_fake.feedforward_torque"
+        )
+    hardware_builder.ExportOutput(
+        real_station.GetOutputPort("iiwa_thanos.position_commanded"), "iiwa_thanos.position_commanded"
+    )
+    hardware_builder.ExportOutput(
+        real_station.GetOutputPort("iiwa_thanos.position_measured"), "iiwa_thanos.position_measured"
+    )
+    
+    hardware_diagram = hardware_builder.Build()
+    return hardware_diagram, hardware_plant
+
 def create_visual_diagram(directives_filepath: str, meshcat, package_file='./package.xml') -> Diagram:
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
