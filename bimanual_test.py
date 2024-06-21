@@ -8,6 +8,7 @@ from pydrake.all import (
 )
 import numpy as np
 JOINT0 = np.array([0.0, np.pi/6, 0.0, -80*np.pi/180, 0.0, np.pi/6, 0.0])
+# JOINT0 = np.zeros(7)
 ENDTIME = 20.0
 if __name__ == '__main__':
     meshcat = StartMeshcat()

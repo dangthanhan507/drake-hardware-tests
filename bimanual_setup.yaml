@@ -45,6 +45,6 @@ Demo:
     iiwa_medusa: !IiwaDriver
       control_mode: position_and_torque
       lcm_bus: medusa_lcm
-    thanos_lcm: !IiwaDriver
+    iiwa_thanos: !IiwaDriver
       control_mode: position_and_torque
-      lcm_bus: right_lcm
+      lcm_bus: thanos_lcm

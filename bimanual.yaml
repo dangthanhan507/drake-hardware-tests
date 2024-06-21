@@ -1,0 +1,36 @@
+directives:
+  # Add iiwa_medusa
+      - add_model:
+          name: iiwa_medusa
+          file: package://drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf
+          default_joint_positions:
+              iiwa_joint_1: [0]
+              iiwa_joint_2: [0.0]
+              iiwa_joint_3: [0]
+              iiwa_joint_4: [0]
+              iiwa_joint_5: [0]
+              iiwa_joint_6: [0]
+              iiwa_joint_7: [0]
+      - add_weld:
+          parent: world
+          child: iiwa_medusa::base
+  # Add iiwa_thanos
+      - add_model:
+          name: iiwa_thanos
+          file: package://drake/manipulation/models/iiwa_description/urdf/iiwa14_polytope_collision.urdf
+          default_joint_positions:
+              iiwa_joint_1: [0]
+              iiwa_joint_2: [0.0]
+              iiwa_joint_3: [0]
+              iiwa_joint_4: [0]
+              iiwa_joint_5: [0]
+              iiwa_joint_6: [0]
+              iiwa_joint_7: [0]
+      - add_frame:
+          name: iiwa_thanos_origin
+          X_PF:
+            base_frame: world
+            translation: [0, 0.765, 0]
+      - add_weld:
+          parent: iiwa_thanos_origin
+          child: iiwa_thanos::base
